@@ -15,6 +15,7 @@ function generateApiKeys() {
   if (database.checkApiKey(hashedApiKey)) {
     generateApiKeys();
   } else {
+    console.log(`API Key: ${apiKey} Hashed API Key: ${hashedApiKey}`);
     return { apiKey, hashedApiKey };
   }
 }
@@ -35,7 +36,7 @@ app.use(
 );
 
 //bullshit endpoint nobody will pay too use
-app.get("/api", (req, res) => { ``
+app.get("/api", (req, res) => {
 
     //TODO change api key to pass from header
     const apiKey = req.query.apiKey;
@@ -60,6 +61,7 @@ app.post("/checkout", async (req, res) => {
 })
 
 //mostly some boilerplate code to handle stripe webhooks
+//TODO add logs to find where webhooks are failing
 app.post("/webhook", async (req, res) => {
   let data;
   let eventType;
@@ -78,8 +80,9 @@ app.post("/webhook", async (req, res) => {
         signature,
         webhookSecret
       );
+      console.log(`✅  Webhook received: ${event.id}`);
     } catch (err) {
-      console.log(`⚠️  Webhook signature verification failed.`);
+      console.log(`⚠️  Webhook signature verification failed.`, err.message);
       return res.sendStatus(400);
     }
 
@@ -98,9 +101,17 @@ app.post("/webhook", async (req, res) => {
         const customerId = data.object.customer;
         const subscriptionId = data.object.subscription;
 
+        console.log(`Customer ID: ${customerId} has subscribed to subscription ID: ${subscriptionId}`);
+
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         const itemId = subscription.items.data[0].id;
         //TODO give customers access to api key and store hashed api key in database
+
+        const { apiKey, hashedApiKey } = generateApiKeys();
+        console.log(`API Key: ${apiKey} Hashed API Key: ${hashedApiKey}`);
+
+        database.insertCustomer(customerId, hashedApiKey, true);
+        console.log(`Customer ID: ${customerId} has been added to the database`);
 
       break;
     case 'invoice.paid':
