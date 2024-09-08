@@ -1,7 +1,9 @@
 const { Client } = require('pg');
 const keys = require('./apiKeys');
 
-const client = new Client({
+//adds customer to track api keys
+function insertCustomer(customerId, apiKey, active) {
+  const client = new Client({
     host: 'localhost',
     user: 'postgres',
     database: 'stripe',
@@ -12,9 +14,7 @@ const client = new Client({
     .then(() => console.log("Connected to database"))
     .catch(e => console.log('error', e.stack));
 
-//adds customer to track api keys
-function insertCustomer(customerId, apiKey, active) {
-    const query = `INSERT INTO customers (customer_id, api-key, active) VALUES ('${customerId}', '${apiKey}', '${active}') RETURNING *`;
+    const query = `INSERT INTO customers (customer_id, api_key, active) VALUES ('${customerId}', '${apiKey}', '${active}') RETURNING *`;
 
     client.query(query, (err, res) => {
       if (err) {
@@ -30,21 +30,32 @@ function insertCustomer(customerId, apiKey, active) {
 
 //checks if api key is in database
 function checkApiKey(apikey) {
-    const query = `SELECT * FROM customers WHERE api_key = '${apikey}'`;
+  const client = new Client({
+    host: 'localhost',
+    user: 'postgres',
+    database: 'stripe',
+    port: 5432,
+  })
 
-    client.query(query, (err, res) => {
-        if (err) {
-            console.error(err);
-            return;
-        } else {
-            console.log(res.rows[0]);
-        }
+  client.connect()
+    .then(() => console.log("Connected to database"))
+    .catch(e => console.log('error', e.stack));
 
-        client.end();
-    })
+  const query = `SELECT * FROM customers WHERE api_key = '${apikey}'`;
+
+  client.query(query, (err, res) => {
+      if (err) {
+          console.error(err);
+          return;
+      } else {
+          console.log(res.rows[0]);
+      }
+
+      client.end();
+  })
 }
 
 module.exports = {
-    insertCustomer,
-    checkApiKey
+  insertCustomer,
+  checkApiKey
 }

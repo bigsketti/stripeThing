@@ -96,22 +96,22 @@ app.post("/webhook", async (req, res) => {
 
   switch (eventType) {
     case 'checkout.session.completed':
-        console.log("Checkout session completed", data);
+      console.log("Checkout session completed", data);
 
-        const customerId = data.object.customer;
-        const subscriptionId = data.object.subscription;
+      const customerId = data.object.customer;
+      const subscriptionId = data.object.subscription;
 
-        console.log(`Customer ID: ${customerId} has subscribed to subscription ID: ${subscriptionId}`);
+      console.log(`Customer ID: ${customerId} has subscribed to subscription ID: ${subscriptionId}`);
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        const itemId = subscription.items.data[0].id;
-        //TODO give customers access to api key and store hashed api key in database
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const itemId = subscription.items.data[0].id;
+      //TODO give customers access to api key and store hashed api key in database
 
-        const { apiKey, hashedApiKey } = generateApiKeys();
-        console.log(`API Key: ${apiKey} Hashed API Key: ${hashedApiKey}`);
+      const { apiKey, hashedApiKey } = generateApiKeys();
+      console.log(`API Key: ${apiKey} Hashed API Key: ${hashedApiKey}`);
 
-        database.insertCustomer(customerId, hashedApiKey, true);
-        console.log(`Customer ID: ${customerId} has been added to the database`);
+      database.insertCustomer(customerId, hashedApiKey, true);
+      console.log(`Customer ID: ${customerId} has been added to the database`);
 
       break;
     case 'invoice.paid':
