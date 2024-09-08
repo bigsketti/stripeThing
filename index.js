@@ -4,36 +4,9 @@ const app = express();
 const keys = require('./apiKeys');
 const stripe = require('stripe')(keys.stripeKey);
 
+const  generate = require('./apiKeyGen');
+
 const database = require('./database');
-
-//creates api key for new customer
-function generateApiKeys() {
-  const { randomBytes } = require('crypto');
-  const apiKey = randomBytes(32).toString('hex');
-  const hashedApiKey = hashApiKey(apiKey);
-
-  if (database.checkApiKey(hashedApiKey)) {
-    generateApiKeys();
-  } else {
-    console.log(`API Key: ${apiKey} Hashed API Key: ${hashedApiKey}`);
-    return { apiKey, hashedApiKey };
-  }
-}
-
-//hashes api key for storage
-function hashApiKey(apiKey) {
-  const { createHash } = require('crypto');
-  const hashedApiKey = createHash('sha256').update(apiKey).digest('hex');
-
-  return hashedApiKey;
-}
-
-//middleware to parse raw body
-app.use(
-  express.json({
-    verify: (req, res, buffer) => (req['rawBody'] = buffer),
-  })
-);
 
 //bullshit endpoint nobody will pay too use
 app.get("/api", (req, res) => {
@@ -105,9 +78,10 @@ app.post("/webhook", async (req, res) => {
 
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       const itemId = subscription.items.data[0].id;
+      console.log(`Item ID: ${itemId}`);
       //TODO give customers access to api key and store hashed api key in database
 
-      const { apiKey, hashedApiKey } = generateApiKeys();
+      const { apiKey, hashedApiKey } = generate.generateApiKeys();
       console.log(`API Key: ${apiKey} Hashed API Key: ${hashedApiKey}`);
 
       database.insertCustomer(customerId, hashedApiKey, true);
