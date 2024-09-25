@@ -8,13 +8,27 @@ const  generate = require('./apiKeyGen');
 
 const database = require('./database');
 
+app.use(express.json({ verify: (req, res, buf) => {
+  req.rawBody = buf.toString();  // Save the raw body for Stripe verification
+}}));
+
+
 //bullshit endpoint nobody will pay too use
 app.get("/api", (req, res) => {
 
     //TODO change api key to pass from header
     const apiKey = req.query.apiKey;
 
-    res.send({ data: "Listen here lochness monsta, im not giving you no tree fiddy" });
+    //TODO check if api key is in database
+    let hashedApiKey = generate.hashApiKey(apiKey);
+    const result = database.checkApiKey(hashedApiKey);
+
+    if (result) {
+        res.status(200).send({ data: "Listen here lochness monsta, im not giving you no tree fiddy" });
+    } else {
+        res.status(401).send({ data: "You are not authorized to use this api" });
+    }
+    
 })
 
 //creates checkout session through stripe
@@ -34,7 +48,6 @@ app.post("/checkout", async (req, res) => {
 })
 
 //mostly some boilerplate code to handle stripe webhooks
-//TODO add logs to find where webhooks are failing
 app.post("/webhook", async (req, res) => {
   let data;
   let eventType;
@@ -81,15 +94,24 @@ app.post("/webhook", async (req, res) => {
       console.log(`Item ID: ${itemId}`);
       //TODO give customers access to api key and store hashed api key in database
 
+      break;
+    case 'invoice.paid':
+      console.log("Invoice paid");
       const { apiKey, hashedApiKey } = generate.generateApiKeys();
       console.log(`API Key: ${apiKey} Hashed API Key: ${hashedApiKey}`);
 
-      database.insertCustomer(customerId, hashedApiKey, true);
-      console.log(`Customer ID: ${customerId} has been added to the database`);
+      if (apiKey === undefined || hashedApiKey === undefined) {
+        console.log('error generating api key');
+        return;
+      }
+      try {
+        await database.insertCustomer(customerId, hashedApiKey, true);
+        console.log(`Customer ID: ${customerId} has been added to the database`);
+      }
+      catch (err) {
+        console.error("Error inserting into database", err);
+      }
 
-      break;
-    case 'invoice.paid':
-        console.log("Invoice paid");
       break;
     case 'invoice.payment_failed':
         console.log("Invoice payment failed");
